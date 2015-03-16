@@ -2,7 +2,7 @@
 omf_sfa_am:
   # This is your testbed's domain. It will be used in the URNs
   # of the resources e.g. 'urn:publicid:IDN+domain+type+name'
-  domain: omf:testserver
+  domain: fed4fire.eu 
   #operation mode for OmfCommon.init (development, production, etc)
   operationMode: development
 
@@ -16,23 +16,23 @@ omf_sfa_am:
       type: xmlrpc
       port: 8001
       ssl:
-        cert_chain_file: ~/.omf/am.pem
-        private_key_file: ~/.omf/am.pkey
-      trusted_roots: ~/.omf/trusted_roots
+        cert_chain_file: ~/.central_broker/am.pem
+        private_key_file: ~/.central_broker/am.pkey
+      trusted_roots: ~/.central_broker/trusted_roots
     -
       type: xmpp
       user: am_mgr-1.0
       password: pw
-      server: nitlab.inf.uth.gr
+      server: nitlab3.inf.uth.gr
       auth:
-        :entity_cert: ~/.omf/am.pem
-        :entity_key: ~/.omf/am.pkey
-        :root_cert_dir: ~/.omf/trusted_roots
+        :entity_cert: ~/.central_broker/am.pem
+        :entity_key: ~/.central_broker/am.pkey
+        :root_cert_dir: ~/.central_broker/trusted_roots
 
   mapping_submodule:
-      require: omf-sfa/am/mapping_submodule
-      constructor: MappingSubmodule
+      require: /home/f4f.central_broker/Central_Broker/omf_sfa/lib/omf-sfa/am/f4f_mapping_submodule
+      constructor: F4FMappingSubmodule
 
   am_liaison:
-      require: omf-sfa/am/nitos_am_liaison
-      constructor: OMF::SFA::AM::NitosAMLiaison
+      require: /home/f4f.central_broker/Central_Broker/omf_sfa/lib/omf-sfa/am/f4f_am_liaison.rb
+      constructor: OMF::SFA::AM::F4FAMLiaison
