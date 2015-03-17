@@ -196,6 +196,11 @@ module OMF::SFA::AM
         add_lease_events_on_event_scheduler(lease)
       end
 
+      @event_scheduler.at('4s') do 
+      # @event_scheduler.every('30m') do 
+        @liaison.repopulate_db_through_manifold(@am_manager)
+      end
+
       list_all_event_scheduler_jobs
     end
 
