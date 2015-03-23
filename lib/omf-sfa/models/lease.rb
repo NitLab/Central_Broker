@@ -42,7 +42,7 @@ module OMF::SFA::Model
       values.reject! { |k, v| v.nil?}
       values[:components] = []
       self.components.each do |component|
-        next if component.account.id == 2
+        next if component.account && component.account.id == 2
         values[:components] << component.to_hash_brief
       end
       excluded = self.class.exclude_from_json
