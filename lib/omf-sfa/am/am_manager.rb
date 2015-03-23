@@ -259,7 +259,7 @@ module OMF::SFA::AM
 
       raise UnavailableResourceException.new "Cannot create '#{lease_descr.inspect}'" unless lease
       @scheduler.add_lease_events_on_event_scheduler(lease) 
-      @scheduler.list_all_event_scheduler_jobs #debug messages only
+      # @scheduler.list_all_event_scheduler_jobs #debug messages only
       lease
       # lease = create_resource(lease_descr, 'Lease', lease_properties, authorizer)
     end
