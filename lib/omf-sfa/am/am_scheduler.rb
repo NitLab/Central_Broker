@@ -187,7 +187,7 @@ module OMF::SFA::AM
       #@am_liaison = OMF::SFA::AM::AMLiaison.new
     end
 
-    def initialize_event_scheduler
+    def initialize_event_scheduler(am_manager)
       debug "initialize_event_scheduler"
       @event_scheduler = Rufus::Scheduler.new
 
@@ -198,7 +198,7 @@ module OMF::SFA::AM
 
       @event_scheduler.at('4s') do 
       # @event_scheduler.every('30m') do 
-        @liaison.repopulate_db_through_manifold(@am_manager)
+        @liaison.repopulate_db_through_manifold(am_manager)
       end
 
       list_all_event_scheduler_jobs
@@ -241,7 +241,7 @@ module OMF::SFA::AM
       debug "update_lease_events_on_event_scheduler: lease: #{lease.inspect}"
       delete_lease_events_from_event_scheduler(lease)
       add_lease_events_on_event_scheduler(lease)
-      list_all_event_scheduler_jobs
+      # list_all_event_scheduler_jobs
     end
 
     def delete_lease_events_from_event_scheduler(lease)
@@ -257,7 +257,7 @@ module OMF::SFA::AM
         @event_scheduler.unschedule(jid)
       end
 
-      list_all_event_scheduler_jobs
+      # list_all_event_scheduler_jobs
     end
 
     def list_all_event_scheduler_jobs
