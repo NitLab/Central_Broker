@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # specify any dependencies here; for example:
-  s.add_development_dependency "minitest", "~> 4.3.3"
+  s.add_runtime_dependency "minitest", "~> 5.5.1"
   s.add_runtime_dependency "nokogiri", "~> 1.5.6"
   s.add_runtime_dependency "erector", "~> 0.8.3"
   s.add_runtime_dependency "rack", "~> 1.5.2"
