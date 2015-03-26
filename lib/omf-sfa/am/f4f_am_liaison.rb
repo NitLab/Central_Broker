@@ -211,8 +211,11 @@ module OMF::SFA::AM
       desc[:valid_until] = resource['end_time']      
       lease = manager.find_or_create_lease(desc, @authorizer)
       # comp = manager.find_all_components({urn: resource['resource']}, @authorizer)
-      child = manager.get_scheduler.create_child_resource({urn: resource['resource']}, resource['resource'].split('+')[-2])
-      manager.get_scheduler.lease_component(lease, child)
+      begin
+        child = manager.get_scheduler.create_child_resource({urn: resource['resource']}, resource['resource'].split('+')[-2])
+        manager.get_scheduler.lease_component(lease, child)
+      rescue UnknownResourceException
+      end
     end
 
     def update_lease(resource, res_desc, manager)
@@ -223,8 +226,11 @@ module OMF::SFA::AM
         comp_urns << comp.urn
       end
       unless comp_urns.include?(res_desc['resource']) 
-        child = manager.get_scheduler.create_child_resource({urn: res_desc['resource']}, res_desc['resource'].split('+')[-2])
-        manager.get_scheduler.lease_component(resource, child)
+        begin
+          child = manager.get_scheduler.create_child_resource({urn: res_desc['resource']}, res_desc['resource'].split('+')[-2])
+          manager.get_scheduler.lease_component(resource, child)
+        rescue UnknownResourceException
+        end
       end
       resource.save
     end
