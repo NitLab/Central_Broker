@@ -16,15 +16,21 @@ module OMF::SFA::AM
 
     def repopulate_db_through_manifold(manager)
       debug "repopulate_db_through_manifold"
+      @auth = {
+        'AuthMethod' => 'password',
+        'Username' => 'admin',
+        'AuthString' => 'demo'
+      }
       @authorizer = OMF::SFA::AM::DefaultAuthorizer.new({can_create_resource?: true, can_modify_resource?: true, can_view_resource?:true, can_release_resource?: true, can_view_lease?: true, can_modify_lease?: true, can_release_lease?: true})
       update_nitos_resources(manager)
       update_nitos_leases(manager)
+      update_ple_resources(manager)
     end
 
     def update_nitos_resources(query=nil, manager)
       debug "get_nitos_resources: #{query.inspect}"
       if query.nil?
-        query = query = {
+        query = {
           action: 'get',
           object: 'resource',
           fields: ['hrn', 'component_name', 'component_id', 'exclusive', 'hrn', 'urn',
@@ -34,17 +40,11 @@ module OMF::SFA::AM
         }
       end
 
-      auth = {
-        'AuthMethod' => 'password',
-        'Username' => 'admin',
-        'AuthString' => 'demo'
-      }
-
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
 
       begin
-        result = client.call("forward", query, {'authentication' => auth})
+        result = client.call("forward", query, {'authentication' => @auth})
       rescue XMLRPC::FaultException => e
         raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
       end
@@ -63,8 +63,43 @@ module OMF::SFA::AM
       end
     end
 
+    def update_ple_resources(query=nil, manager)
+      debug "get_ple_resources: #{query.inspect}"
+      if query.nil?
+        query = {
+          action: 'get',
+          object: 'resource',
+          fields: ['hrn', 'component_name', 'component_id', 'exclusive', 'hrn', 'urn',
+          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type'],
+          filters: [['network_hrn', '=', 'ple']]
+          # other testbeds: 'ple', 'omf.nitos' includes netmode at least for the moment
+        }
+      end
+
+      client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
+      client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
+
+      begin
+        result = client.call("forward", query, {'authentication' => @auth})
+      rescue XMLRPC::FaultException => e
+        raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
+      end
+
+      remove_ple_resources_that_are_not_included_in_manifold_result(result, manager)
+
+      result['value'].each do |res|
+        case res['type'] 
+        when 'node'
+          res['available'] = (res['boot_state'] == 'boot') if res['available'].nil?
+          create_or_update_node(res, true, manager)
+        else
+          puts "Ante na doume ti mas stelneis re Manifold: #{res['type']} - #{res.inspect}"
+        end 
+      end
+    end
+
     def update_nitos_leases(query=nil, manager)
-      debug "get_nitos_resources: #{query.inspect}"
+      debug "get_nitos_leases: #{query.inspect}"
       if query.nil?
         query = {
           action: 'get',
@@ -97,14 +132,18 @@ module OMF::SFA::AM
       end
     end
 
-    def create_or_update_node(node, manager)
+    def create_or_update_node(node, ple = false, manager)
       debug "create_or_update_node: #{node.inspect}"
       node_desc = node.dup
       urn = node['urn']
       node = OMF::SFA::Model::Node.first(urn: urn, account_id: manager._get_nil_account.id)
       if node
-        debug "creating resource: #{node_desc['urn']}"
-        update_node(node, node_desc, manager)
+        debug "updating resource: #{node_desc['urn']}"
+        if ple
+          update_node_ple(node, node_desc, manager)
+        else
+          update_node(node, node_desc, manager)
+        end
       else
         debug "creating resource: #{node_desc['urn']}"
         create_node(node_desc, manager)
@@ -182,6 +221,13 @@ module OMF::SFA::AM
       resource.save
     end
 
+    def update_node_ple(resource, res_desc, manager)
+      raise RuntimeError, "resource does not exist #{resource.class}" unless resource.kind_of? OMF::SFA::Model::Node
+      #TODO get data from UML db and update node availability
+
+      true
+    end
+
     def create_channel(resource, manager)
       desc = {}
       desc[:urn] = resource['urn']
@@ -244,7 +290,10 @@ module OMF::SFA::AM
         channel_urns << res['urn'] if res['type'] == 'channel' 
       end
       db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
+
+      nitos_domains = ['omf:netmode', 'omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
       db_nodes.each do |node|
+        next unless nitos_domains.include?(node.domain)
         node.destroy unless node_urns.include?(node.urn) 
       end
       db_channels = OMF::SFA::Model::Channel.where(account_id: manager._get_nil_account.id)
@@ -253,7 +302,7 @@ module OMF::SFA::AM
       end
     end
 
-     def remove_nitos_leases_that_are_not_included_in_manifold_result(result, manager)
+    def remove_nitos_leases_that_are_not_included_in_manifold_result(result, manager)
       debug "remove_nitos_leases_that_are_not_included_in_manifold_result"
       lease_uuids = []
       result['value'].each do |res|
@@ -285,6 +334,23 @@ module OMF::SFA::AM
       #     puts "  #{c.urn}"
       #   end
       # end
+    end
+
+    def remove_ple_resources_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_ple_resources_that_are_not_included_in_manifold_result"
+      node_urns = []
+      channel_urns = []
+      result['value'].each do |res|
+        node_urns << res['urn'] if res['type'] == 'node' 
+        channel_urns << res['urn'] if res['type'] == 'channel' 
+      end
+      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
+
+      nitos_domains = ['omf:netmode', 'omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
+      db_nodes.each do |node|
+        next if nitos_domains.include?(node.domain)
+        node.destroy unless node_urns.include?(node.urn) 
+      end
     end
   end # DefaultAMLiaison
 end # OMF::SFA::AM
