@@ -72,7 +72,7 @@ module OMF::SFA::AM::Rest
           return ['application/json', JSON.pretty_generate({:resource_response => resource}, :for_rest => true)]
         rescue OMF::SFA::AM::UnavailableResourceException
           raise UnknownResourceException, "There are no available resources matching the request."
-        rescue MappingSubmodule::UnknownTypeException
+        rescue F4FMappingSubmodule::UnknownTypeException
           raise BadRequestException, "Missing the mandatory parameter 'type' from one of the requested resources."
         end
       else
