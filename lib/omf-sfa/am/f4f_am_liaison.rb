@@ -22,9 +22,15 @@ module OMF::SFA::AM
         'AuthString' => 'demo'
       }
       @authorizer = OMF::SFA::AM::DefaultAuthorizer.new({can_create_resource?: true, can_modify_resource?: true, can_view_resource?:true, can_release_resource?: true, can_view_lease?: true, can_modify_lease?: true, can_release_lease?: true})
-      update_nitos_resources(manager)
-      update_nitos_leases(manager)
-      update_ple_resources(manager)
+      
+
+      # update_nitos_resources(manager)
+      # update_nitos_leases(manager)
+
+      # update_netmode_resources(manager)
+      # update_netmode_leases(manager)
+
+      # update_ple_resources(manager)
     end
 
     def update_nitos_resources(query=nil, manager)
@@ -32,11 +38,43 @@ module OMF::SFA::AM
       if query.nil?
         query = {
           action: 'get',
-          object: 'resource',
+          object: 'nitos:resource',
           fields: ['hrn', 'component_name', 'component_id', 'exclusive', 'hrn', 'urn',
-          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type'],
-          filters: [['network_hrn', '=', 'omf.nitos']]
-          # other testbeds: 'ple', 'omf.nitos' includes netmode at least for the moment
+          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
+        }
+      end
+
+      client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
+      client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
+
+      begin
+        result = client.call("forward", query, {'authentication' => @auth})
+      rescue XMLRPC::FaultException => e
+        raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
+      end
+
+      remove_nitos_resources_that_are_not_included_in_manifold_result(result, manager)
+
+      result['value'].each do |res|
+        case res['type'] 
+        when 'node'
+          create_or_update_node(res, manager)
+        when 'channel'
+          create_or_update_channel(res, manager)
+        else
+          puts "Ante na doume ti mas stelneis re Manifold: #{res['type']} - #{res.inspect}"
+        end 
+      end
+    end
+
+    def update_netmode_resources(query=nil, manager)
+      debug "get_netmode_resources: #{query.inspect}"
+      if query.nil?
+        query = {
+          action: 'get',
+          object: 'netmode:resource',
+          fields: ['hrn', 'component_name', 'component_id', 'exclusive', 'hrn', 'urn',
+          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
         }
       end
 
@@ -68,11 +106,9 @@ module OMF::SFA::AM
       if query.nil?
         query = {
           action: 'get',
-          object: 'resource',
+          object: 'ple:resource',
           fields: ['hrn', 'component_name', 'component_id', 'exclusive', 'hrn', 'urn',
-          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type'],
-          filters: [['network_hrn', '=', 'ple']]
-          # other testbeds: 'ple', 'omf.nitos' includes netmode at least for the moment
+          'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
         }
       end
 
@@ -103,10 +139,9 @@ module OMF::SFA::AM
       if query.nil?
         query = {
           action: 'get',
-          object: 'lease',
+          object: 'nitos:lease',
           fields: ['resource', 'slice', 'duration', 'end_time', 'granularity', 'lease_id',
-                    'start_time', 'lease_type'],
-          filters: [['network_hrn', '=', 'omf.nitos']]
+                    'start_time', 'lease_type']
         }
       end
 
@@ -128,8 +163,134 @@ module OMF::SFA::AM
       remove_nitos_leases_that_are_not_included_in_manifold_result(result, manager)
 
       result['value'].each do |lease|
-        create_or_update_lease(lease, manager) unless lease['resource'].nil?
+        create_or_update_lease(lease, 'omf:nitos', manager) unless lease['resource'].nil?
       end
+    end
+
+    def update_netmode_leases(query=nil, manager)
+      debug "get_netmode_leases: #{query.inspect}"
+      if query.nil?
+        query = {
+          action: 'get',
+          object: 'netmode:lease',
+          fields: ['resource', 'slice', 'duration', 'end_time', 'granularity', 'lease_id',
+                    'start_time', 'lease_type']
+        }
+      end
+
+      auth = {
+        'AuthMethod' => 'password',
+        'Username' => 'admin',
+        'AuthString' => 'demo'
+      }
+
+      client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
+      client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
+
+      begin
+        result = client.call("forward", query, {'authentication' => auth})
+      rescue XMLRPC::FaultException => e
+        raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
+      end
+
+      remove_netmode_leases_that_are_not_included_in_manifold_result(result, manager)
+
+      result['value'].each do |lease|
+        create_or_update_lease(lease, 'omf:netmode', manager) unless lease['resource'].nil?
+      end
+    end
+
+
+
+    def remove_nitos_resources_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_nitos_resources_that_are_not_included_in_manifold_result"
+      node_urns = []
+      channel_urns = []
+      result['value'].each do |res|
+        node_urns << res['urn'] if res['type'] == 'node' 
+        channel_urns << res['urn'] if res['type'] == 'channel' 
+      end
+      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
+
+      nitos_domains = ['omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
+      db_nodes.each do |node|
+        next unless nitos_domains.include?(node.domain)
+        node.destroy unless node_urns.include?(node.urn) 
+      end
+      db_channels = OMF::SFA::Model::Channel.where(account_id: manager._get_nil_account.id)
+      db_channels.each do |channel|
+        next unless channel.domain == 'omf:nitos'
+        channel.destroy unless channel_urns.include?(channel.urn) 
+      end
+    end
+
+    def remove_netmode_resources_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_nitos_resources_that_are_not_included_in_manifold_result"
+      node_urns = []
+      channel_urns = []
+      result['value'].each do |res|
+        node_urns << res['urn'] if res['type'] == 'node' 
+        channel_urns << res['urn'] if res['type'] == 'channel' 
+      end
+      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
+
+      netmode_domains = ['omf:netmode'] 
+      db_nodes.each do |node|
+        next unless netmode_domains.include?(node.domain)
+        node.destroy unless node_urns.include?(node.urn) 
+      end
+      db_channels = OMF::SFA::Model::Channel.where(account_id: manager._get_nil_account.id)
+      db_channels.each do |channel|
+        channel.destroy unless channel_urns.include?(channel.urn) 
+      end
+    end
+
+    def remove_nitos_leases_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_nitos_leases_that_are_not_included_in_manifold_result"
+      lease_uuids = []
+      result['value'].each do |res|
+        lease_uuids << res['lease_id'] 
+      end
+      db_leases = OMF::SFA::Model::Lease.all
+      db_leases.each do |lease|
+        next unless get_domain_from_urn(lease.urn) == 'omf:nitos'
+        manager.release_lease(lease, @authorizer) unless lease_uuids.include?(lease.uuid)
+      end
+    end
+
+    def remove_netmode_leases_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_netmode_leases_that_are_not_included_in_manifold_result"
+      lease_uuids = []
+      result['value'].each do |res|
+        lease_uuids << res['lease_id'] 
+      end
+      db_leases = OMF::SFA::Model::Lease.all
+      db_leases.each do |lease|
+        next unless get_domain_from_urn(lease.urn) == 'omf:netmode'
+        manager.release_lease(lease, @authorizer) unless lease_uuids.include?(lease.uuid)
+      end
+    end
+
+    def remove_ple_resources_that_are_not_included_in_manifold_result(result, manager)
+      debug "remove_ple_resources_that_are_not_included_in_manifold_result"
+      node_urns = []
+      channel_urns = []
+      result['value'].each do |res|
+        node_urns << res['urn'] if res['type'] == 'node' 
+        channel_urns << res['urn'] if res['type'] == 'channel' 
+      end
+      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
+
+      non_ple_domains = ['omf:netmode', 'omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
+      db_nodes.each do |node|
+        next if non_ple_domains.include?(node.domain)
+        node.destroy unless node_urns.include?(node.urn) 
+      end
+    end
+
+    private
+    def get_domain_from_urn(urn)
+      urn.split('+')[-3]
     end
 
     def create_or_update_node(node, ple = false, manager)
@@ -164,7 +325,7 @@ module OMF::SFA::AM
       end
     end
 
-    def create_or_update_lease(lease, manager)
+    def create_or_update_lease(lease, domain, manager)
       debug "create_or_update_lease: #{lease.inspect}"
       lease_desc = lease.dup
       uuid = lease['lease_id']
@@ -174,13 +335,8 @@ module OMF::SFA::AM
         update_lease(lease, lease_desc, manager)
       else
         debug "creating lease: #{lease_desc['lease_id']}"
-        create_lease(lease_desc, manager)
+        create_lease(lease_desc, domain, manager)
       end
-    end
-
-    private
-    def get_domain_from_urn(urn)
-      urn.split('+')[-3]
     end
 
     def create_node(resource, manager)
@@ -195,7 +351,21 @@ module OMF::SFA::AM
       desc[:location_attributes][:latitude] = resource['latitude'].nil? ? resource['y'] : resource['latitude']
       desc[:location_attributes][:longitude] = resource['longitude'].nil? ? resource['x'] : resource['longitude']
       desc[:location_attributes][:altitude] = resource['altitude'].nil? ? resource['z'] : resource['altitude']
-      unless resource['interfaces'].nil?
+      if resource['interfaces'].nil?
+        desc[:interfaces_attributes] = []
+        interface = {}
+        interface[:urn] = resource['interface.component_id']
+        interface[:name] = resource['interface.component_name']
+        interface[:role] = resource['interface.role']
+        interface[:mac] = resource['mac_address']
+        interface[:ips_attributes] = []
+        ip = {}
+        ip[:address] = resource['interface.ip.address']
+        ip[:netmask] = resource['interface.ip.netmask']
+        ip[:type] = resource['interface.ip.ip_type']
+        interface[:ips_attributes] << ip
+        desc[:interfaces_attributes] << interface
+      else
         desc[:interfaces_attributes] = []
         resource['interfaces'].each do |i|
           interface = {}
@@ -248,10 +418,11 @@ module OMF::SFA::AM
       resource.save
     end
 
-    def create_lease(resource, manager)
+    def create_lease(resource, domain, manager)
       desc = {}
       desc[:uuid] = resource['lease_id']
       desc[:name] = resource['lease_id']
+      desc[:urn] = "urn:publicid:IDN+#{domain}+node+#{resource['lease_id']}"
       desc[:account_id] = manager._get_nil_account.id
       desc[:valid_from] = resource['start_time']
       desc[:valid_until] = resource['end_time']      
@@ -281,77 +452,29 @@ module OMF::SFA::AM
       resource.save
     end
 
-    def remove_nitos_resources_that_are_not_included_in_manifold_result(result, manager)
-      debug "remove_nitos_resources_that_are_not_included_in_manifold_result"
-      node_urns = []
-      channel_urns = []
-      result['value'].each do |res|
-        node_urns << res['urn'] if res['type'] == 'node' 
-        channel_urns << res['urn'] if res['type'] == 'channel' 
-      end
-      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
-
-      nitos_domains = ['omf:netmode', 'omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
-      db_nodes.each do |node|
-        next unless nitos_domains.include?(node.domain)
-        node.destroy unless node_urns.include?(node.urn) 
-      end
-      db_channels = OMF::SFA::Model::Channel.where(account_id: manager._get_nil_account.id)
-      db_channels.each do |channel|
-        channel.destroy unless channel_urns.include?(channel.urn) 
-      end
-    end
-
-    def remove_nitos_leases_that_are_not_included_in_manifold_result(result, manager)
-      debug "remove_nitos_leases_that_are_not_included_in_manifold_result"
-      lease_uuids = []
-      result['value'].each do |res|
-        lease_uuids << res['lease_id'] 
-      end
-      db_leases = OMF::SFA::Model::Lease.all
-      db_leases.each do |lease|
-        manager.release_lease(lease, @authorizer) unless lease_uuids.include?(lease.uuid)
-      end
-      # leases = {}
-      # result['value'].each do |res|
-      #   id = res['lease_id']
-      #   if leases[id].nil?
-      #     leases[id] = {}
-      #     leases[id]['start_time'] = res['start_time']
-      #     leases[id]['end_time'] = res['end_time']
-      #     leases[id]['components'] = []
-      #     comp = OMF::SFA::Model::Component.first(urn: res['resource'], account_id: manager._get_nil_account.id)
-      #     leases[id]['components'] << comp
-      #   else
-      #     comp = OMF::SFA::Model::Component.first(urn: res['resource'], account_id: manager._get_nil_account.id)
-      #     leases[id]['components'] << comp
-      #   end
-      # end
-      # puts "*******************************"
-      # leases.each do |k, v|
-      #   puts "#{k}: #{v['start_time']} - #{v['end_time']}"
-      #   v['components'].each do |c|
-      #     puts "  #{c.urn}"
-      #   end
-      # end
-    end
-
-    def remove_ple_resources_that_are_not_included_in_manifold_result(result, manager)
-      debug "remove_ple_resources_that_are_not_included_in_manifold_result"
-      node_urns = []
-      channel_urns = []
-      result['value'].each do |res|
-        node_urns << res['urn'] if res['type'] == 'node' 
-        channel_urns << res['urn'] if res['type'] == 'channel' 
-      end
-      db_nodes = OMF::SFA::Model::Node.where(account_id: manager._get_nil_account.id)
-
-      nitos_domains = ['omf:netmode', 'omf:nitos.indoor', 'omf:nitos.outdoor', 'omf:nitos.office'] 
-      db_nodes.each do |node|
-        next if nitos_domains.include?(node.domain)
-        node.destroy unless node_urns.include?(node.urn) 
-      end
-    end
+    
   end # DefaultAMLiaison
 end # OMF::SFA::AM
 
+# leases = {}
+# result['value'].each do |res|
+#   id = res['lease_id']
+#   if leases[id].nil?
+#     leases[id] = {}
+#     leases[id]['start_time'] = res['start_time']
+#     leases[id]['end_time'] = res['end_time']
+#     leases[id]['components'] = []
+#     comp = OMF::SFA::Model::Component.first(urn: res['resource'], account_id: manager._get_nil_account.id)
+#     leases[id]['components'] << comp
+#   else
+#     comp = OMF::SFA::Model::Component.first(urn: res['resource'], account_id: manager._get_nil_account.id)
+#     leases[id]['components'] << comp
+#   end
+# end
+# puts "*******************************"
+# leases.each do |k, v|
+#   puts "#{k}: #{v['start_time']} - #{v['end_time']}"
+#   v['components'].each do |c|
+#     puts "  #{c.urn}"
+#   end
+# end
