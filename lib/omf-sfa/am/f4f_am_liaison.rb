@@ -20,21 +20,21 @@ module OMF::SFA::AM
         'AuthMethod' => 'password',
         'Username' => 'admin',
         'AuthString' => 'demo'
-      }
-      @authorizer = OMF::SFA::AM::DefaultAuthorizer.new({can_create_resource?: true, can_modify_resource?: true, can_view_resource?:true, can_release_resource?: true, can_view_lease?: true, can_modify_lease?: true, can_release_lease?: true})
-      
+      } unless @auth
+      @authorizer = OMF::SFA::AM::DefaultAuthorizer.new({can_create_resource?: true, can_modify_resource?: true, can_view_resource?:true, can_release_resource?: true, can_view_lease?: true, can_modify_lease?: true, can_release_lease?: true}) unless @authorizer
 
-      # update_nitos_resources(manager)
-      # update_nitos_leases(manager)
+      update_nitos_resources(manager)
+      update_nitos_leases(manager)
 
-      # update_netmode_resources(manager)
-      # update_netmode_leases(manager)
+      update_netmode_resources(manager)
+      update_netmode_leases(manager)
 
-      # update_ple_resources(manager)
+      update_ple_resources(manager)
     end
 
     def update_nitos_resources(query=nil, manager)
       debug "get_nitos_resources: #{query.inspect}"
+      
       if query.nil?
         query = {
           action: 'get',
@@ -43,6 +43,11 @@ module OMF::SFA::AM
           'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
         }
       end
+      @auth = {
+        'AuthMethod' => 'password',
+        'Username' => 'admin',
+        'AuthString' => 'demo'
+      } unless @auth
 
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
@@ -69,6 +74,7 @@ module OMF::SFA::AM
 
     def update_netmode_resources(query=nil, manager)
       debug "get_netmode_resources: #{query.inspect}"
+
       if query.nil?
         query = {
           action: 'get',
@@ -77,6 +83,11 @@ module OMF::SFA::AM
           'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
         }
       end
+      @auth = {
+        'AuthMethod' => 'password',
+        'Username' => 'admin',
+        'AuthString' => 'demo'
+      } unless @auth
 
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
@@ -87,7 +98,7 @@ module OMF::SFA::AM
         raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
       end
 
-      remove_nitos_resources_that_are_not_included_in_manifold_result(result, manager)
+      remove_netmode_resources_that_are_not_included_in_manifold_result(result, manager)
 
       result['value'].each do |res|
         case res['type'] 
@@ -103,6 +114,7 @@ module OMF::SFA::AM
 
     def update_ple_resources(query=nil, manager)
       debug "get_ple_resources: #{query.inspect}"
+
       if query.nil?
         query = {
           action: 'get',
@@ -111,6 +123,11 @@ module OMF::SFA::AM
           'boot_state', 'available', 'x', 'y', 'z', 'longitude', 'latitude', 'altitude', 'interfaces', 'hardware_types', 'type']
         }
       end
+      @auth = {
+        'AuthMethod' => 'password',
+        'Username' => 'admin',
+        'AuthString' => 'demo'
+      } unless @auth
 
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
@@ -136,6 +153,7 @@ module OMF::SFA::AM
 
     def update_nitos_leases(query=nil, manager)
       debug "get_nitos_leases: #{query.inspect}"
+
       if query.nil?
         query = {
           action: 'get',
@@ -144,18 +162,17 @@ module OMF::SFA::AM
                     'start_time', 'lease_type']
         }
       end
-
-      auth = {
+      @auth = {
         'AuthMethod' => 'password',
         'Username' => 'admin',
         'AuthString' => 'demo'
-      }
+      } unless @auth
 
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
 
       begin
-        result = client.call("forward", query, {'authentication' => auth})
+        result = client.call("forward", query, {'authentication' => @auth})
       rescue XMLRPC::FaultException => e
         raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
       end
@@ -169,6 +186,7 @@ module OMF::SFA::AM
 
     def update_netmode_leases(query=nil, manager)
       debug "get_netmode_leases: #{query.inspect}"
+
       if query.nil?
         query = {
           action: 'get',
@@ -177,18 +195,17 @@ module OMF::SFA::AM
                     'start_time', 'lease_type']
         }
       end
-
-      auth = {
+      @auth = {
         'AuthMethod' => 'password',
         'Username' => 'admin',
         'AuthString' => 'demo'
-      }
+      } unless @auth
 
       client = XMLRPC::Client.new2('https://test.myslice.info:7080/', nil, 90)
       client.instance_variable_get(:@http).instance_variable_set(:@verify_mode, OpenSSL::SSL::VERIFY_NONE)
 
       begin
-        result = client.call("forward", query, {'authentication' => auth})
+        result = client.call("forward", query, {'authentication' => @auth})
       rescue XMLRPC::FaultException => e
         raise RuntimeError, "Something went wrong: #{e.faultCode} #{e.faultString}"
       end
