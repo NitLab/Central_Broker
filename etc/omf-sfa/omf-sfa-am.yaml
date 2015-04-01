@@ -30,7 +30,7 @@ omf_sfa_am:
         :root_cert_dir: ~/.central_broker/trusted_roots
 
   mapping_submodule:
-      require: /home/f4f.central_broker/Central_Broker/omf_sfa/lib/omf-sfa/am/f4f_mapping_submodule
+      require: /home/f4f.central_broker/Central_Broker/omf_sfa/lib/omf-sfa/am/f4f_mapping_submodule_2
       constructor: F4FMappingSubmodule
 
   am_liaison:

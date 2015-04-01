@@ -68,11 +68,14 @@ class F4FMappingSubmodule < OMF::Common::LObject
       # node_cost = array[0]
       # link_cost = array[1]
 
-#   puts "###############################"
-#   puts "node cost : #{node_cost}"
-#   puts "link cost : #{link_cost}" 
-#   puts "###############################"
+   puts "###############################"
+   puts "node cost : #{node_cost}"
+   puts "link cost : #{link_cost}" 
+   puts "###############################"
     
+
+sleep(20)
+
       ils_algorithm(node_cost, link_cost, query[:resources])
     end
 
@@ -200,10 +203,17 @@ class F4FMappingSubmodule < OMF::Common::LObject
       end 
     end
     
-
     # find domains and scarcity of the resource type required
     resources.each do |res|
       if res.domain
+          if res.domain.include? "ple:"
+                res[:domain] = "ple"
+           end
+          #if res.domain.include? "nitos"
+           #     res[:domain] = "omf:nitos"
+           #end
+
+
         if domains.has_key?(res.domain)
           domains[res.domain] += 1
         else
@@ -211,6 +221,11 @@ class F4FMappingSubmodule < OMF::Common::LObject
         end
       end
     end
+
+	puts "###########################################"
+	puts "Length of domains is #{domains.length}"
+	puts "###########################################"
+	sleep(20)
                 
     # create the link cost hash.
     # Temporarily no links are included in the request.
@@ -514,10 +529,10 @@ end
         end
       end
 
-      puts "############################################"
-      puts "Execution Time for domain #{resource[:domain]} find av_resources: #{Time.now - beg}"
-      puts "Available resources is #{av_resources}"
-      puts "############################################"
+    #  puts "############################################"
+    #  puts "Execution Time for domain #{resource[:domain]} find av_resources: #{Time.now - beg}"
+    #  puts "Available resources is #{av_resources}"
+    #  puts "############################################"
 
       first_resource = 0
       resources.each do |res| #remove already given resources
@@ -535,6 +550,11 @@ end
           resource[:uuid] = res.uuid.to_s
           resource[:urn] = res.urn
           resource[:name] = res.name
+          
+	  puts "##########################################################"
+	  puts "FIRST Resource picked is #{resource[:name]}"
+          puts "##########################################################"     
+	  sleep(20)
         # resource[:urn]
         else
           #compute the center of mass of the already mapped resources
@@ -654,6 +674,8 @@ end
     locations["omf.nitos.node008"] = [6.53, 0, 4.35]
     locations["omf.nitos.node009"] = [6.22, 0, 0]
     locations["omf.nitos.node010"] = [11.35, 0, 2.17]
+    locations["omf.nitos.node014"] = [10, 2.8, 4.35]
+    locations["omf.nitos.node015"] = [9.45, 2.8, 4.35]
     locations["omf.nitos.node016"] = [12.75, 0.93, 4.35]
     locations["omf.nitos.node017"] = [12.75, 1.55, 4.35]
     locations["omf.nitos.node018"] = [12.75, 2.17, 4.35]
@@ -683,6 +705,42 @@ end
     locations["omf.nitos.node047"] = [3.34, 0.85, 1000]
     locations["omf.nitos.node048"] = [6.69, 0.85, 1000]
     locations["omf.nitos.node049"] = [7.7, 0, 1000]
+    locations["omf.nitos.node050"] = [0, 0, 2000]
+    locations["omf.nitos.node051"] = [2, 0, 2000]
+    locations["omf.nitos.node052"] = [4, 0, 2000]
+    locations["omf.nitos.node053"] = [6, 0, 2000]
+    locations["omf.nitos.node054"] = [0, 1, 2000]
+    locations["omf.nitos.node055"] = [2, 1, 2000]
+    locations["omf.nitos.node056"] = [4, 1, 2000]
+    locations["omf.nitos.node057"] = [6, 1, 2000]
+    locations["omf.nitos.node058"] = [0, 2, 2000]
+    locations["omf.nitos.node059"] = [2, 2, 2000]
+    locations["omf.nitos.node060"] = [4, 2, 2000]
+    locations["omf.nitos.node061"] = [6, 2, 2000]
+    locations["omf.nitos.node062"] = [0, 3, 2000]
+    locations["omf.nitos.node063"] = [2, 3, 2000]
+    locations["omf.nitos.node064"] = [4, 3, 2000]
+    locations["omf.nitos.node065"] = [6, 3, 2000]
+    locations["omf.nitos.node066"] = [0, 4, 2000]
+    locations["omf.nitos.node067"] = [2, 4, 2000]
+    locations["omf.nitos.node068"] = [4, 4, 2000]
+    locations["omf.nitos.node069"] = [6, 4, 2000]
+    locations["omf.nitos.node070"] = [0, 5, 2000]
+    locations["omf.nitos.node071"] = [2, 5, 2000]
+    locations["omf.nitos.node072"] = [4, 5, 2000]
+    locations["omf.nitos.node073"] = [6, 5, 2000]
+    locations["omf.nitos.node074"] = [0, 6, 2000]
+    locations["omf.nitos.node075"] = [2, 6, 2000]
+    locations["omf.nitos.node076"] = [4, 6, 2000]
+    locations["omf.nitos.node077"] = [6, 6, 2000]
+    locations["omf.nitos.node078"] = [0, 7, 2000]
+    locations["omf.nitos.node079"] = [2, 7, 2000]
+    locations["omf.nitos.node080"] = [4, 7, 2000]
+    locations["omf.nitos.node081"] = [6, 7, 2000]
+    locations["omf.nitos.node082"] = [0, 8, 2000]
+    locations["omf.nitos.node083"] = [2, 8, 2000]
+    locations["omf.nitos.node084"] = [4, 8, 2000]
+    locations["omf.nitos.node085"] = [6, 8, 2000]
     ##W-iLab.t
     locations["zotacB1"] = [6, 1, 0]
     locations["zotacC1"] = [12, 1, 0]
