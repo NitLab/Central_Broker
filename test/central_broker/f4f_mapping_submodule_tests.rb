@@ -25,7 +25,7 @@ class AMScheduler < MiniTest::Test
   def before_setup
     opts = {}
     opts[:mapping_submodule] = {}
-    opts[:mapping_submodule][:require] = "omf-sfa/am/f4f_mapping_submodule" 
+    opts[:mapping_submodule][:require] = "omf-sfa/am/f4f_mapping_submodule_2" 
     opts[:mapping_submodule][:constructor] = "F4FMappingSubmodule" 
     @scheduler = OMF::SFA::AM::AMScheduler.new(opts)
   end
